@@ -1,11 +1,10 @@
 package snail.app.flutter.google.pay;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.support.annotation.NonNull;
+import android.text.TextUtils;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.google.android.gms.common.api.Status;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -15,6 +14,8 @@ import com.google.android.gms.wallet.IsReadyToPayRequest;
 import com.google.android.gms.wallet.PaymentData;
 import com.google.android.gms.wallet.PaymentDataRequest;
 import com.google.android.gms.wallet.PaymentsClient;
+import com.google.android.gms.wallet.Wallet;
+import com.google.android.gms.wallet.WalletConstants;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,6 +36,7 @@ import io.flutter.plugin.common.PluginRegistry.Registrar;
 public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry.ActivityResultListener {
     private static final String CHANNEL_NAME = "flutter_google_pay";
     private final String METHOD_REQUEST_PAYMENT = "request_payment";
+    private final String METHOD_REQUEST_CUSTOM_PAYMENT = "request_payment_custom_payment";
     private final String METHOD_IS_AVAILABLE = "is_available";
     private final String KEY_METHOD = "method_name";
 
@@ -55,14 +57,24 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
     private PaymentsClient mPaymentsClient;
     private Activity mActivity;
 
-    private enum Error {
-        WRONG_AMOUNT,
-    }
-
 
     private FlutterGooglePayPlugin(Activity activity) {
         this.mActivity = activity;
-        mPaymentsClient = PaymentsUtil.createPaymentsClient(activity);
+    }
+
+    private PaymentsClient client() {
+        if (mPaymentsClient == null) {
+            String environment = String.valueOf(mLastMethodCall.argument("environment"));
+            int env = WalletConstants.ENVIRONMENT_TEST;
+            if (environment.equals("production")) {
+                env = WalletConstants.ENVIRONMENT_PRODUCTION;
+            }
+            mPaymentsClient =
+                    Wallet.getPaymentsClient(mActivity,
+                            new Wallet.WalletOptions.Builder().setEnvironment(env)
+                                    .build());
+        }
+        return mPaymentsClient;
     }
 
     /**
@@ -78,58 +90,108 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
     public void onMethodCall(MethodCall call, Result result) {
         mLastMethodCall = call;
         mLastResult = result;
-        if (call.method.equals(METHOD_REQUEST_PAYMENT)) {
-            this.requestPayment();
-        } else if (call.method.equals(METHOD_IS_AVAILABLE)) {
-            this.checkIsGooglePayAvailable();
+        switch (call.method) {
+            case METHOD_REQUEST_PAYMENT:
+                this.requestPayment();
+                break;
+            case METHOD_IS_AVAILABLE:
+                this.checkIsGooglePayAvailable();
+                break;
+            case (METHOD_REQUEST_CUSTOM_PAYMENT):
+                this.requestPaymentCustom();
+                break;
         }
     }
 
-    private void callToDartOnGooglePayAvailable() {
-        if (mLastResult == null) {
+    /**
+     * PaymentData response object contains the payment information, as well as any additional
+     * requested information, such as billing and shipping address.
+     *
+     * @param paymentData A response object returned by Google after a payer approves payment.
+     * @see <a
+     * href="https://developers.google.com/pay/api/android/reference/object#PaymentData">Payment
+     * Data</a>
+     */
+    private void callToDartOnPaymentSuccess(PaymentData paymentData) {
+        String paymentInformation = paymentData.toJson();
+
+        // Token will be null if PaymentDataRequest was not constructed using fromJson(String).
+        if (paymentInformation == null) {
             return;
         }
+        JSONObject paymentMethodData;
+        try {
+            paymentMethodData = new JSONObject(paymentInformation).getJSONObject("paymentMethodData");
+            String billingName =
+                    paymentMethodData.getJSONObject("info").getJSONObject("billingAddress").getString("name");
+            Log.d("BillingName", billingName);
+            Map<String, Object> data = new HashMap<>();
+            data.put("result", paymentMethodData);
+            mLastResult.success(data);
+            // Logging token string.
+            Log.d("GooglePaymentToken", paymentMethodData.getJSONObject("tokenizationData").getString("token"));
+        } catch (JSONException e) {
+            this.callToDartOnError(e.getMessage());
+        }
+    }
+
+    private void callToDartOnGooglePayIsAvailable(boolean isAvailable) {
         Map<String, Object> data = new HashMap<>();
         data.put(KEY_METHOD, METHOD_IS_AVAILABLE);
-        data.put("isAvailable", true);
+        data.put("isAvailable", isAvailable);
         mLastResult.success(data);
     }
 
+    private void callToDartOnError(String error) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("error", error);
+        mLastResult.success(data);
+    }
+
+    private void callToDartOnCanceled() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("status", "canceled");
+        mLastResult.success(data);
+    }
+
+    private void requestPaymentCustom() {
+        Map map = mLastMethodCall.argument("custom_data");
+        try {
+            JSONObject paymentData = new JSONObject(map);
+            PaymentDataRequest request =
+                    PaymentDataRequest.fromJson(paymentData.toString());
+            this.makePayment(request);
+        } catch (Exception e) {
+            callToDartOnError(e.getMessage());
+        }
+    }
+
     private void requestPayment() {
-        if (mLastMethodCall == null) {
-            return;
-        }
-        validatePayment();
-        String amount = String.valueOf(mLastMethodCall.argument("amount"));
-        String currencyCode = String.valueOf(mLastMethodCall.argument("currencyCode"));
+        String amount = mLastMethodCall.argument("amount");
+        String currencyCode = mLastMethodCall.argument("currencyCode");
+        String gateway = mLastMethodCall.argument("gateway");
+        String stripeToken = mLastMethodCall.argument("stripeToken");
+        String stripeVersion = mLastMethodCall.argument("stripeVersion");
 
+        PaymentInfo paymentInfo = new PaymentInfo();
+        paymentInfo.setTotalPrice(amount)
+                .setCurrencyCode(currencyCode)
+                .setGateway(gateway)
+                .setStripeToken(stripeToken)
+                .setStripeVersion(stripeVersion);
 
-        // TransactionInfo transaction = PaymentsUtil.createTransaction(price);
-        JSONObject paymentDataRequestJson = PaymentsUtil.getPaymentDataRequest(amount, currencyCode);
-        if (paymentDataRequestJson == null) {
-            return;
-        }
         PaymentDataRequest request =
-                PaymentDataRequest.fromJson(paymentDataRequestJson.toString());
+                paymentInfo.createPaymentDataRequest(!TextUtils.isEmpty(stripeToken));
+        this.makePayment(request);
+    }
 
+    private void makePayment(PaymentDataRequest request) {
         // Since loadPaymentData may show the UI asking the user to select a payment method, we use
         // AutoResolveHelper to wait for the user interacting with it. Once completed,
         // onActivityResult will be called with the result.
         if (request != null) {
-            AutoResolveHelper.resolveTask(
-                    mPaymentsClient.loadPaymentData(request), mActivity, LOAD_PAYMENT_DATA_REQUEST_CODE);
-        }
-    }
-
-    private void validatePayment() {
-        Object amount = mLastMethodCall.argument("amount");
-        if (!(amount instanceof Integer) && !(amount instanceof String)) {
-            mLastResult.error(Error.WRONG_AMOUNT.name(), "Wrong amount", amount);
-        }
-
-        Object currencyCode = mLastMethodCall.argument("currencyCode");
-        if (!(currencyCode instanceof Integer) && !(currencyCode instanceof String)) {
-            mLastResult.error(Error.WRONG_AMOUNT.name(), "Wrong amount", currencyCode);
+            Task<PaymentData> task = client().loadPaymentData(request);
+            AutoResolveHelper.resolveTask(task, mActivity, LOAD_PAYMENT_DATA_REQUEST_CODE);
         }
     }
 
@@ -141,26 +203,22 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
      * "https://developers.google.com/android/reference/com/google/android/gms/wallet/PaymentsClient.html#isReadyToPay(com.google.android.gms.wallet.IsReadyToPayRequest)">PaymentsClient#IsReadyToPay</a>
      */
     private void checkIsGooglePayAvailable() {
-        final JSONObject isReadyToPayJson = PaymentsUtil.getIsReadyToPayRequest();
-        if (isReadyToPayJson == null) {
-            return;
-        }
-        IsReadyToPayRequest request = IsReadyToPayRequest.fromJson(isReadyToPayJson.toString());
-        if (request == null) {
-            return;
-        }
-
+        IsReadyToPayRequest request = IsReadyToPayRequest.newBuilder()
+                .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_CARD)
+                .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD)
+                .build();
         // The call to isReadyToPay is asynchronous and returns a Task. We need to provide an
         // OnCompleteListener to be triggered when the result of the call is known.
-        Task<Boolean> task = mPaymentsClient.isReadyToPay(request);
+        Task<Boolean> task = client().isReadyToPay(request);
         task.addOnCompleteListener(mActivity,
                 new OnCompleteListener<Boolean>() {
                     @Override
                     public void onComplete(@NonNull Task<Boolean> task) {
                         if (task.isSuccessful()) {
-                            callToDartOnGooglePayAvailable();
+                            callToDartOnGooglePayIsAvailable(true);
 
                         } else {
+                            callToDartOnGooglePayIsAvailable(false);
                             Log.w("isReadyToPay failed", task.getException());
                         }
                     }
@@ -183,15 +241,16 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
                 case Activity.RESULT_OK:
                     PaymentData paymentData = PaymentData.getFromIntent(data);
                     if (paymentData != null) {
-                        handlePaymentSuccess(paymentData);
+                        this.callToDartOnPaymentSuccess(paymentData);
                     }
                     return true;
                 case Activity.RESULT_CANCELED:
+                    this.callToDartOnCanceled();
                     return true;
                 case AutoResolveHelper.RESULT_ERROR:
                     Status status = AutoResolveHelper.getStatusFromIntent(data);
                     if (status != null) {
-                        handleError(status.getStatusCode());
+                        this.callToDartOnError(status.getStatusMessage());
                     }
                     return true;
             }
@@ -199,71 +258,4 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
         return false;
     }
 
-    /**
-     * PaymentData response object contains the payment information, as well as any additional
-     * requested information, such as billing and shipping address.
-     *
-     * @param paymentData A response object returned by Google after a payer approves payment.
-     * @see <a
-     * href="https://developers.google.com/pay/api/android/reference/object#PaymentData">Payment
-     * Data</a>
-     */
-    private void handlePaymentSuccess(PaymentData paymentData) {
-        String paymentInformation = paymentData.toJson();
-
-        // Token will be null if PaymentDataRequest was not constructed using fromJson(String).
-        if (paymentInformation == null) {
-            return;
-        }
-        JSONObject paymentMethodData;
-
-        try {
-            paymentMethodData = new JSONObject(paymentInformation).getJSONObject("paymentMethodData");
-            // If the gateway is set to "example", no payment information is returned - instead, the
-            // token will only consist of "examplePaymentMethodToken".
-            if (paymentMethodData
-                    .getJSONObject("tokenizationData")
-                    .getString("type")
-                    .equals("PAYMENT_GATEWAY")
-                    && paymentMethodData
-                    .getJSONObject("tokenizationData")
-                    .getString("token")
-                    .equals("examplePaymentMethodToken")) {
-                AlertDialog alertDialog =
-                        new AlertDialog.Builder(mActivity)
-                                .setTitle("Warning")
-                                .setMessage(
-                                        "Gateway name set to \"example\" - please modify "
-                                                + "Constants.java and replace it with your own gateway.")
-                                .setPositiveButton("OK", null)
-                                .create();
-                alertDialog.show();
-            }
-
-            String billingName =
-                    paymentMethodData.getJSONObject("info").getJSONObject("billingAddress").getString("name");
-            Log.d("BillingName", billingName);
-            Toast.makeText(mActivity, "Success" + billingName, Toast.LENGTH_LONG)
-                    .show();
-
-            // Logging token string.
-            Log.d("GooglePaymentToken", paymentMethodData.getJSONObject("tokenizationData").getString("token"));
-        } catch (JSONException e) {
-            Log.e("handlePaymentSuccess", "Error: " + e.toString());
-        }
-    }
-
-    /**
-     * At this stage, the user has already seen a popup informing them an error occurred. Normally,
-     * only logging is required.
-     *
-     * @param statusCode will hold the value of any constant from CommonStatusCode or one of the
-     *                   WalletConstants.ERROR_CODE_* constants.
-     * @see <a
-     * href="https://developers.google.com/android/reference/com/google/android/gms/wallet/WalletConstants#constant-summary">
-     * Wallet Constants Library</a>
-     */
-    private void handleError(int statusCode) {
-        Log.w("loadPaymentData failed", String.format("Error code: %d", statusCode));
-    }
 }

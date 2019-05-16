@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-
-import 'package:flutter/services.dart';
 import 'package:flutter_google_pay/flutter_google_pay.dart';
 
 void main() => runApp(MyApp());
@@ -12,32 +9,41 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
-
   @override
   void initState() {
     super.initState();
-    initPlatformState();
   }
 
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    try {
-      platformVersion = await FlutterGooglePay.platformVersion;
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
+  _makePayment() async {
+    if (!(await FlutterGooglePay.isAvailable())) {
+      _showToast(context, 'Google pay not available');
+    } else {
+      bool customData = false;
+
+      if (!customData) {
+        PaymentItem pm = PaymentItem(
+            currencyCode: "usd",
+            amount: "1",
+            gateway: 'stripe',
+            environment: 'test');
+
+        FlutterGooglePay.makePayment(pm).then((dynamic result) {
+          //TODO
+        }).catchError((error) {
+          //TODO
+        });
+      } else {
+        //or
+        ///docs https://developers.google.com/pay/api/android/guides/tutorial
+        var jsonPayment = Map();
+
+        FlutterGooglePay.makeCustomPayment(jsonPayment).then((dynamic result) {
+          //TODO
+        }).catchError((error) {
+          //TODO
+        });
+      }
     }
-
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
-    setState(() {
-      _platformVersion = platformVersion;
-    });
   }
 
   @override
@@ -48,9 +54,23 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Plugin example app'),
         ),
         body: Center(
-          child: Text('Running on: $_platformVersion\n'),
+          child: FlatButton(
+            onPressed: _makePayment,
+            child: Text('Pay'),
+          ),
         ),
       ),
     );
+  }
+
+  void _showToast(BuildContext context, String message) {
+    final scaffold = Scaffold.of(context);
+    scaffold.showSnackBar(SnackBar(
+      content: Text(message),
+      action: SnackBarAction(
+        label: 'UNDO',
+        onPressed: () {},
+      ),
+    ));
   }
 }
