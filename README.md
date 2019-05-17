@@ -1,14 +1,56 @@
 # flutter_google_pay
+[![pub](https://img.shields.io/pub/v/flutter_google_pay.svg)](https://pub.dev/packages/flutter_google_pay)
 
-Flutter Google Pay
+Accept Payments with Android Pay using the [Payment Request API](https://developers.google.com/pay/api/android/overview).
 
-## Getting Started
+## Usage
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/developing-packages/),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
+```dart
+  import 'package:flutter_google_pay/flutter_google_pay.dart';
+  
+  
+  _makePayment() async {
+    if (!(await FlutterGooglePay.isAvailable())) {
+       //_showToast(context, 'Google pay not available');
+    } else {
+      bool customData = false;
+      if (!customData) {
+        PaymentItem pm = PaymentItem(
+            currencyCode: "usd",
+            amount: "1.0",
+            gateway: 'stripe',
+            environment: 'test');
+        FlutterGooglePay.makePayment(pm).then((Result result) {
+          if (result.status == ResultStatus.SUCCESS) {
+            //Success!
+          }
+        }).catchError((error) {
+          //unresolved error
+        });
+      } 
+    }
+  }
+  
+  //or
+   _makeCustomPayment() async {
+     if (!(await FlutterGooglePay.isAvailable())) {
+       _showToast(context, 'Google pay not available');
+     } else {
+         var jsonPayment = Map();
+         FlutterGooglePay.makeCustomPayment(jsonPayment).then((dynamic result) {
+           if (result.status == ResultStatus.SUCCESS) {
+             //Success!
+           }
+         }).catchError((error) {
+           //unresolved error
+         });
+       }
+     }
+  
+```
+### Doc for creating custom payment data:
 
-For help getting started with Flutter, view our 
-[online documentation](https://flutter.dev/docs), which offers tutorials, 
-samples, guidance on mobile development, and a full API reference.
+ *[Google Pay](https://developers.google.com/pay/api/android/guides/tutorial)
+
+
+

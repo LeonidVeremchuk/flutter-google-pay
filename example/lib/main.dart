@@ -27,10 +27,12 @@ class _MyAppState extends State<MyApp> {
             gateway: 'stripe',
             environment: 'test');
 
-        FlutterGooglePay.makePayment(pm).then((dynamic result) {
-          //TODO
+        FlutterGooglePay.makePayment(pm).then((Result result) {
+          if (result.status == ResultStatus.SUCCESS) {
+            //Success!
+          }
         }).catchError((error) {
-          //TODO
+          //unresolved error
         });
       } else {
         //or
