@@ -1,6 +1,6 @@
 name: flutter_google_pay
-description: Flutter Google Pay
-version: 0.1.2
+description: Porting of Google Pay (a digital wallet platform and online payment system) to Flutter.
+version: 0.1.2+1
 author: Leonid Veremchuk<leonid.veremchuk@gmail.com>
 homepage: https://github.com/LeonidVeremchuk
 

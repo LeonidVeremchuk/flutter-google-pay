@@ -66,7 +66,6 @@ class PaymentItem {
   String stripeVersion;
   String environment;
 
-
   PaymentItem(
       {@required this.currencyCode,
       @required this.amount,
@@ -92,7 +91,6 @@ class PaymentItem {
 
     return args;
   }
-
 }
 
 enum ResultStatus {

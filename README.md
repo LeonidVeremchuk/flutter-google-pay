@@ -44,8 +44,8 @@ Accept Payments with Android Pay using the [Payment Request API](https://develop
          }).catchError((error) {
            //unresolved error
          });
-       }
      }
+  }
   
 ```
 ### Doc for creating custom payment data:
