@@ -50,7 +50,7 @@ Accept Payments with Android Pay using the [Payment Request API](https://develop
 ```
 ### Doc for creating custom payment data:
 
- *[Google Pay](https://developers.google.com/pay/api/android/guides/tutorial)
+ [Google Pay](https://developers.google.com/pay/api/android/guides/tutorial)
 
 
 

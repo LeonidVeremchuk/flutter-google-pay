@@ -2,7 +2,6 @@ package snail.app.flutter.google.pay;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.support.annotation.NonNull;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -57,7 +56,6 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
     private PaymentsClient mPaymentsClient;
     private Activity mActivity;
 
-
     private FlutterGooglePayPlugin(Activity activity) {
         this.mActivity = activity;
     }
@@ -83,6 +81,7 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
     public static void registerWith(Registrar registrar) {
         final MethodChannel channel = new MethodChannel(registrar.messenger(), CHANNEL_NAME);
         FlutterGooglePayPlugin plugin = new FlutterGooglePayPlugin(registrar.activity());
+        registrar.addActivityResultListener(plugin);
         channel.setMethodCallHandler(plugin);
     }
 
@@ -113,45 +112,49 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
      * Data</a>
      */
     private void callToDartOnPaymentSuccess(PaymentData paymentData) {
-        String paymentInformation = paymentData.toJson();
-
-        // Token will be null if PaymentDataRequest was not constructed using fromJson(String).
-        if (paymentInformation == null) {
-            return;
-        }
-        JSONObject paymentMethodData;
+        JSONObject paymentMethodData = null;
         try {
-            paymentMethodData = new JSONObject(paymentInformation).getJSONObject("paymentMethodData");
-            String billingName =
-                    paymentMethodData.getJSONObject("info").getJSONObject("billingAddress").getString("name");
-            Log.d("BillingName", billingName);
+            if (paymentData.getPaymentMethodToken() != null) {
+                paymentMethodData = new JSONObject(paymentData.getPaymentMethodToken().getToken());
+            }
+            Log.d("PaymentData:", String.valueOf(paymentMethodData));
             Map<String, Object> data = new HashMap<>();
-            data.put("result", paymentMethodData);
+            data.put("status", paymentMethodData != null ? "SUCCESS" : "UNKNOWN");
+            if (paymentMethodData != null) {
+                data.put("result", paymentMethodData.toString());
+            }
             mLastResult.success(data);
-            // Logging token string.
-            Log.d("GooglePaymentToken", paymentMethodData.getJSONObject("tokenizationData").getString("token"));
         } catch (JSONException e) {
             this.callToDartOnError(e.getMessage());
         }
     }
 
     private void callToDartOnGooglePayIsAvailable(boolean isAvailable) {
-        Map<String, Object> data = new HashMap<>();
-        data.put(KEY_METHOD, METHOD_IS_AVAILABLE);
-        data.put("isAvailable", isAvailable);
-        mLastResult.success(data);
+        if (mLastResult != null) {
+            Map<String, Object> data = new HashMap<>();
+            data.put(KEY_METHOD, METHOD_IS_AVAILABLE);
+            data.put("isAvailable", isAvailable);
+            mLastResult.success(data);
+            mLastResult = null;
+        }
     }
 
     private void callToDartOnError(String error) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("error", error);
-        mLastResult.success(data);
+        if (mLastResult != null) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("error", error);
+            mLastResult.success(data);
+            mLastResult = null;
+        }
     }
 
     private void callToDartOnCanceled() {
-        Map<String, Object> data = new HashMap<>();
-        data.put("status", "canceled");
-        mLastResult.success(data);
+        if (mLastResult != null) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("status", "canceled");
+            mLastResult.success(data);
+            mLastResult = null;
+        }
     }
 
     private void requestPaymentCustom() {
@@ -213,7 +216,7 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
         task.addOnCompleteListener(mActivity,
                 new OnCompleteListener<Boolean>() {
                     @Override
-                    public void onComplete(@NonNull Task<Boolean> task) {
+                    public void onComplete(Task<Boolean> task) {
                         if (task.isSuccessful()) {
                             callToDartOnGooglePayIsAvailable(true);
 

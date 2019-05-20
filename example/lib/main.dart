@@ -9,30 +9,33 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  BuildContext scaffoldContext;
+
   @override
   void initState() {
     super.initState();
   }
 
   _makePayment() async {
-    if (!(await FlutterGooglePay.isAvailable())) {
-      _showToast(context, 'Google pay not available');
+    if (!(await FlutterGooglePay.isAvailable('test'))) {
+      _showToast(scaffoldContext, 'Google pay not available');
     } else {
       bool customData = false;
 
       if (!customData) {
         PaymentItem pm = PaymentItem(
+            stripeToken: 'pk_test_1IV5H8NyhgGYOeK6vYV3Qw8f',
+            stripeVersion: "2018-11-08",
             currencyCode: "usd",
-            amount: "1",
-            gateway: 'stripe',
-            environment: 'test');
+            amount: "0.10",
+            gateway: 'stripe');
 
         FlutterGooglePay.makePayment(pm).then((Result result) {
           if (result.status == ResultStatus.SUCCESS) {
-            //Success!
+            _showToast(scaffoldContext, 'Success');
           }
-        }).catchError((error) {
-          //unresolved error
+        }).catchError((dynamic error) {
+          _showToast(scaffoldContext, error.toString());
         });
       } else {
         //or
@@ -52,16 +55,17 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Plugin example app'),
-        ),
-        body: Center(
-          child: FlatButton(
-            onPressed: _makePayment,
-            child: Text('Pay'),
+          appBar: AppBar(
+            title: const Text('Plugin example app'),
           ),
-        ),
-      ),
+          body: Builder(builder: (context) {
+            scaffoldContext = context;
+            return Center(
+                child: FlatButton(
+              onPressed: _makePayment,
+              child: Text('Pay'),
+            ));
+          })),
     );
   }
 

@@ -1,4 +1,5 @@
 import "dart:async";
+import 'dart:convert';
 import "dart:io";
 
 import 'package:flutter/foundation.dart';
@@ -17,21 +18,26 @@ class FlutterGooglePay {
   }
 
   static Future<Result> _call(String methodName, dynamic data) async {
-    await _channel.invokeMethod(methodName, data).then((dynamic data) {
+    Result result =
+        await _channel.invokeMethod(methodName, data).then((dynamic data) {
       return _parseResult(data);
     }).catchError((dynamic error) {
       return Result(
           error?.toString() ?? 'unknow error', null, ResultStatus.ERROR);
     });
+    if (result != null) {
+      return result;
+    }
     return Result('unknow', null, ResultStatus.UNKNOWN);
   }
 
-  static Future<bool> isAvailable() async {
+  static Future<bool> isAvailable(String environment) async {
     if (!Platform.isAndroid) {
       return false;
     }
     try {
-      Map map = await _channel.invokeMethod("is_available");
+      Map map = await _channel
+          .invokeMethod("is_available", {"environment": environment});
       return map['isAvailable'];
     } catch (error) {
       return false;
@@ -42,6 +48,9 @@ class FlutterGooglePay {
     var error = map['error'];
     var status = map['status'];
     var result = map['result'];
+    if (result != null) {
+      result = json.decode(result);
+    }
 
     ResultStatus resultStatus;
 
@@ -64,15 +73,13 @@ class PaymentItem {
   String gateway;
   String stripeToken;
   String stripeVersion;
-  String environment;
 
   PaymentItem(
       {@required this.currencyCode,
       @required this.amount,
       @required this.gateway,
       this.stripeToken,
-      this.stripeVersion,
-      this.environment});
+      this.stripeVersion});
 
   Map toMap() {
     Map args = Map();
@@ -102,7 +109,7 @@ enum ResultStatus {
 
 class Result {
   String error;
-  String data;
+  Map data;
   ResultStatus status;
 
   Result(this.error, this.data, this.status);
