@@ -296,7 +296,7 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
                     return true;
                 case AutoResolveHelper.RESULT_ERROR:
                     Status status = AutoResolveHelper.getStatusFromIntent(data);
-                    this.callToDartOnError(status.getStatus().toString());
+                    this.callToDartOnError(status);
                     return true;
             }
         }
