@@ -1,19 +1,21 @@
-### example/flutter_google_pay_example
 
 ```dart
   import 'package:flutter_google_pay/flutter_google_pay.dart';
   
   _makePayment() async {
-    if (!(await FlutterGooglePay.isAvailable())) {
+     var environment = "test";  /// or production 
+     
+    if (!(await FlutterGooglePay.isAvailable(environment))) {
        //_showToast(context, 'Google pay not available');
     } else {
       bool customData = false;
       if (!customData) {
         PaymentItem pm = PaymentItem(
-            currencyCode: "usd",
-            amount: "1.0",
-            gateway: 'stripe',
-            environment: 'test');
+           stripeToken: 'pk_test_1IV5H8NyhgGYOeK6vYV3Qw8f',
+           stripeVersion: "2018-11-08",
+           currencyCode: "usd",
+           amount: "0.10",
+           gateway: 'stripe');
         FlutterGooglePay.makePayment(pm).then((Result result) {
           if (result.status == ResultStatus.SUCCESS) {
             //Success!
@@ -27,7 +29,9 @@
   
   //or
    _makeCustomPayment() async {
-     if (!(await FlutterGooglePay.isAvailable())) {
+     var environment = "test";  /// or production 
+     
+     if (!(await FlutterGooglePay.isAvailable(environment))) {
        _showToast(context, 'Google pay not available');
      } else {
          var jsonPayment = Map();

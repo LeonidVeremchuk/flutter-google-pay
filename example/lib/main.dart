@@ -17,7 +17,9 @@ class _MyAppState extends State<MyApp> {
   }
 
   _makePayment() async {
-    if (!(await FlutterGooglePay.isAvailable('test'))) {
+    var environment = 'rest'; // or 'production'
+
+    if (!(await FlutterGooglePay.isAvailable(environment))) {
       _showToast(scaffoldContext, 'Google pay not available');
     } else {
       bool customData = false;

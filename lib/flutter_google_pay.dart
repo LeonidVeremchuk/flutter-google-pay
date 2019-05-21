@@ -78,8 +78,8 @@ class PaymentItem {
       {@required this.currencyCode,
       @required this.amount,
       @required this.gateway,
-      this.stripeToken,
-      this.stripeVersion});
+      @required this.stripeToken,
+      @required this.stripeVersion});
 
   Map toMap() {
     Map args = Map();
