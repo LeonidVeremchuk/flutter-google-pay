@@ -148,10 +148,54 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
         }
     }
 
+    private void callToDartOnError(Status status) {
+        if (mLastResult != null) {
+            Map<String, Object> data = new HashMap<>();
+            if (status != null) {
+                String statusMessage = status.getStatusMessage();
+                if (TextUtils.isEmpty(statusMessage)) {
+                    statusMessage = "payment error";
+                }
+                int code = status.getStatusCode();
+                String statusCode;
+                switch (code) {
+                    case 8:
+                        statusCode = "RESULT_INTERNAL_ERROR";
+                        break;
+                    case 10:
+                        statusCode = "DEVELOPER_ERROR";
+                        break;
+                    case 15:
+                        statusCode = "RESULT_TIMEOUT";
+                        break;
+                    case 16:
+                        statusCode = "RESULT_CANCELED";
+                        break;
+                    case 18:
+                        statusCode = "RESULT_DEAD_CLIENT";
+                        break;
+                    default:
+                        statusCode = "UNKNOWN";
+                }
+
+                data.put("error", statusMessage);
+                data.put("status", statusCode);
+                data.put("description", status.toString());
+            } else {
+                data.put("error", "Wrong payment data");
+                data.put("status", "UNKNOWN");
+                data.put("description", "Payment finished without additional information");
+            }
+            mLastResult.success(data);
+            mLastResult = null;
+        }
+    }
+
     private void callToDartOnCanceled() {
         if (mLastResult != null) {
             Map<String, Object> data = new HashMap<>();
-            data.put("status", "canceled");
+            data.put("status", "RESULT_CANCELED");
+            data.put("description", "Canceled by user");
             mLastResult.success(data);
             mLastResult = null;
         }
@@ -252,9 +296,7 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
                     return true;
                 case AutoResolveHelper.RESULT_ERROR:
                     Status status = AutoResolveHelper.getStatusFromIntent(data);
-                    if (status != null) {
-                        this.callToDartOnError(status.getStatusMessage());
-                    }
+                    this.callToDartOnError(status.getStatus().toString());
                     return true;
             }
         }

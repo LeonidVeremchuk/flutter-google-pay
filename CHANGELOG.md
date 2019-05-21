@@ -1,3 +1,7 @@
+## 0.1.3+2
+ 
+* Added more data about payment info
+
 ## 0.1.3+1
  
 * Example update
