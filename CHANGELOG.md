@@ -1,3 +1,11 @@
+## 0.1.4
+
+* Added PaymentBuilder for building custom requests
+
+## 0.1.3+3
+
+* Added more data about payment info
+
 ## 0.1.3+1
  
 * Example update
