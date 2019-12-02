@@ -112,21 +112,13 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
      * Data</a>
      */
     private void callToDartOnPaymentSuccess(PaymentData paymentData) {
-        JSONObject paymentMethodData = null;
-        try {
-            if (paymentData.getPaymentMethodToken() != null) {
-                paymentMethodData = new JSONObject(paymentData.getPaymentMethodToken().getToken());
-            }
-            Log.d("PaymentData:", String.valueOf(paymentMethodData));
-            Map<String, Object> data = new HashMap<>();
-            data.put("status", paymentMethodData != null ? "SUCCESS" : "UNKNOWN");
-            if (paymentMethodData != null) {
-                data.put("result", paymentMethodData.toString());
-            }
-            mLastResult.success(data);
-        } catch (JSONException e) {
-            this.callToDartOnError(e.getMessage());
+        String paymentInfo = paymentData.toJson();
+        Map<String, Object> data = new HashMap<>();
+        data.put("status", paymentInfo != null ? "SUCCESS" : "UNKNOWN");
+        if (paymentInfo != null) {
+            data.put("result", paymentInfo);
         }
+        mLastResult.success(data);
     }
 
     private void callToDartOnGooglePayIsAvailable(boolean isAvailable) {
