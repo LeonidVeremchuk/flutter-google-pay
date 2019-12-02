@@ -202,9 +202,8 @@ public class FlutterGooglePayPlugin implements MethodCallHandler, PluginRegistry
     }
 
     private void requestPaymentCustom() {
-        Map map = mLastMethodCall.argument("custom_data");
         try {
-            JSONObject paymentData = new JSONObject(map);
+            JSONObject paymentData = new JSONObject((Map)mLastMethodCall.arguments);
             PaymentDataRequest request =
                     PaymentDataRequest.fromJson(paymentData.toString());
             this.makePayment(request);
