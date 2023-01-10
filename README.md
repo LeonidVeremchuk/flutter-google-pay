@@ -10,7 +10,7 @@ Accept Payments with Android Pay using the [Payment Request API](https://develop
   
   
   _makeStripePayment() async {
-      var environment = 'rest'; // or 'production'
+      var environment = 'test'; // or 'production'
 
       if (!(await FlutterGooglePay.isAvailable(environment))) {
         _showToast(scaffoldContext, 'Google pay not available');
@@ -33,7 +33,7 @@ Accept Payments with Android Pay using the [Payment Request API](https://develop
     }
 
     _makeCustomPayment() async {
-      var environment = 'rest'; // or 'production'
+      var environment = 'test'; // or 'production'
 
       if (!(await FlutterGooglePay.isAvailable(environment))) {
         _showToast(scaffoldContext, 'Google pay not available');

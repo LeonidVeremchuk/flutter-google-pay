@@ -3,7 +3,7 @@
   import 'package:flutter_google_pay/flutter_google_pay.dart';
   
   _makeStripePayment() async {
-      var environment = 'rest'; // or 'production'
+      var environment = 'test'; // or 'production'
 
       if (!(await FlutterGooglePay.isAvailable(environment))) {
         _showToast(scaffoldContext, 'Google pay not available');
@@ -26,7 +26,7 @@
     }
 
     _makeCustomPayment() async {
-      var environment = 'rest'; // or 'production'
+      var environment = 'test'; // or 'production'
 
       if (!(await FlutterGooglePay.isAvailable(environment))) {
         _showToast(scaffoldContext, 'Google pay not available');

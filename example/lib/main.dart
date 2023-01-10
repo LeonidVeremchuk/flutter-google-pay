@@ -17,7 +17,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   _makeStripePayment() async {
-    var environment = 'rest'; // or 'production'
+    var environment = 'test'; // or 'production'
 
     if (!(await FlutterGooglePay.isAvailable(environment))) {
       _showToast(scaffoldContext, 'Google pay not available');
@@ -40,7 +40,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   _makeCustomPayment() async {
-    var environment = 'rest'; // or 'production'
+    var environment = 'test'; // or 'production'
 
     if (!(await FlutterGooglePay.isAvailable(environment))) {
       _showToast(scaffoldContext, 'Google pay not available');
